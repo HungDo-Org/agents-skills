@@ -1,0 +1,4 @@
+interface:
+  display_name: "System Design Practice"
+  short_description: "Continue and review practical system designs"
+  default_prompt: "Use $system-design-practice to continue this system design from its current stage."
