@@ -53,6 +53,8 @@ Require `Idempotency-Key` for commands where a retry could create a duplicate or
 
 Do not require idempotency keys for naturally idempotent reads.
 
+State the idempotency and concurrency requirement on each endpoint's own contract (e.g. "Requires Idempotency-Key" or "Requires If-Match"), not only in one blanket policy paragraph at the top of the API document. A reader must be able to tell whether a retry is safe from that endpoint's definition alone; a general statement that "retry-sensitive POST operations require it" leaves every individual create endpoint to guess whether it counts.
+
 ## Pagination
 
 Use cursor pagination for large, chronological, or actively changing collections. Build a stable ordering with a unique tie-breaker, such as `(created_at, id)`.

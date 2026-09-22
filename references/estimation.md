@@ -37,6 +37,8 @@ Translate availability targets into expected downtime, but also define failure s
 
 Size cache from the hot working set, object size, TTL, hit-rate target, and redundancy. Size queues from arrival rate, worker throughput, maximum acceptable age, retry volume, and poison-message handling.
 
+If an ADR or the high-level design introduces a cache, queue, or object store, size it here explicitly — don't let it exist in the architecture with no corresponding estimate. Conversely, if a workload estimate implies large or growing storage (e.g. media attachments), it needs a named component in the architecture, not just a total in a table. Treat either direction of mismatch as an unresolved contradiction to fix before delivery, not a detail to leave for later.
+
 ## Sanity checks
 
 - Label every unit.

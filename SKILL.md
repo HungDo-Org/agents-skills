@@ -30,6 +30,8 @@ Every major design element must trace back to a requirement or constraint:
 
 When a new section conflicts with an earlier decision, resolve the conflict or flag it explicitly. Never silently introduce a second source of truth.
 
+Watch specifically for domain terms that quietly change identity between stages — a concept named in the requirements or use cases (e.g. "episode of care") reappearing under a different name in the domain model or API (e.g. "medical record") without an explicit note that they are the same thing, or a deliberate split. Each stage tends to read as internally consistent even when it silently drifted from an earlier one, so this needs an active check, not just proofreading.
+
 ## Estimate before scaling
 
 Use labeled units and visible formulas. Separate normal, peak, burst, growth, retention, replication, index, backup, and attachment assumptions. Keep calculated demand distinct from the rounded engineering target.
@@ -50,7 +52,7 @@ For authoritative writes, define:
 - audit and amendment behavior;
 - failure and recovery behavior.
 
-Record non-obvious choices as short design-decision records containing context, decision, rationale, trade-offs, failure behavior, and a trigger for revisiting the choice.
+Record non-obvious choices as short design-decision records containing context, decision, rationale, alternatives considered, trade-offs, failure behavior, and a trigger for revisiting the choice. Read [references/workflow.md](references/workflow.md) for the fill-in template — writing these as free prose tends to quietly drop the alternatives and the revisit trigger.
 
 ## Design lean client-facing APIs
 
