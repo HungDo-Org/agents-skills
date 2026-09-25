@@ -1,0 +1,7 @@
+#!/bin/sh
+# Run the dbcheck validator from anywhere; creates its venv on first use.
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ ! -x "$SKILL_DIR/.venv/bin/python" ]; then
+  python3 -m venv "$SKILL_DIR/.venv" >&2 && "$SKILL_DIR/.venv/bin/pip" -q install -r "$SKILL_DIR/requirements.txt" >&2 || exit 2
+fi
+PYTHONPATH="$SKILL_DIR" exec "$SKILL_DIR/.venv/bin/python" -m dbcheck "$@"

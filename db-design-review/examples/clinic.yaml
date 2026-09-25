@@ -1,0 +1,370 @@
+# Transcribed from the Google Doc "[Hung.Do] Database Design Practice" (Community Health Clinic).
+# Kept faithful to the doc — including its gaps — so the validator reports on the real design.
+name: Community Health Clinic
+
+mission:
+  statement: >
+    The purpose of the Community Health Clinic Management System is to maintain each patient's
+    longitudinal patient chart and document the medical records, clinical encounters, participants,
+    clinical orders, procedures, results, diagnoses, and treatments involved in delivering care.
+  objectives:
+    - Maintain complete patient information, including known allergies.
+    - Maintain complete clinical staff information, including doctor-specific licenses, departments, and professional titles.
+    - Maintain one longitudinal patient chart per patient.
+    - Create a medical record for each related examination or treatment course.
+    - Track each actual visit or clinical interaction as a clinical encounter within a medical record.
+    - Record every doctor, nurse, or technician participating in a clinical encounter and their responsibility.
+    - Record triage observations such as blood pressure, temperature, height, and weight.
+    - Track orders for laboratory tests, imaging, endoscopy, procedures, and specialist consultations.
+    - Store performed procedures and their diagnostic reports or observations.
+    - Distinguish provisional, differential, and final diagnoses.
+    - Track prescriptions and medications as outcomes of a clinical encounter.
+
+conventions:
+  audit_fields: [created_at, updated_at, deleted_at]
+  audit_fields_implicit: true   # the doc says every table has them
+
+tables:
+  patients:
+    type: data
+    description: A person receiving care at the clinic.
+    primary_key: id
+    fields:
+      id: uuid
+      name: {type: text, nullable: false}
+      date_of_birth: date
+      gender: text
+      phone_number: text
+      address: text
+      national_id: {type: text, unique: true}
+      health_insurance_number: text
+      emergency_contact_name: text
+      emergency_contact_phone: text
+      blood_type: text
+
+  staff_members:
+    type: data
+    description: A shared identity for clinical personnel who may participate in care.
+    primary_key: id
+    fields:
+      id: uuid
+      name: {type: text, nullable: false}
+      date_of_birth: date
+      gender: text
+      phone_number: text
+      email: {type: text, unique: true}
+      national_id: {type: text, unique: true}
+      staff_type: text
+      employment_status: text
+
+  doctors:
+    type: subset
+    description: The doctor-specific subtype of a staff member.
+    primary_key: id
+    fields:
+      id: {type: uuid, references: staff_members.id}
+      license_number: {type: text, unique: true}
+      consultation_fee: numeric
+
+  patient_charts:
+    type: data
+    description: >
+      The longitudinal clinical history maintained for one patient by this clinic and used to
+      connect all of the patient's medical records.
+    primary_key: id
+    fields:
+      id: uuid
+      patient_id: {type: uuid, references: patients.id, unique: true, nullable: false}
+      chart_number: {type: text, unique: true}
+      opened_at: timestamptz
+      closed_at: timestamptz
+
+  medical_records:
+    type: data
+    description: The medical and legal record created for one related examination or treatment course.
+    primary_key: id
+    fields:
+      id: uuid
+      patient_chart_id: {type: uuid, references: patient_charts.id, nullable: false}
+      record_number: {type: text, unique: true}
+      status: text
+      title: text
+      reason: text
+      started_at: timestamptz
+      ended_at: timestamptz
+
+  clinical_encounters:
+    type: data
+    description: One actual visit or clinical interaction within a medical record.
+    primary_key: id
+    fields:
+      id: uuid
+      medical_record_id: {type: uuid, references: medical_records.id, nullable: false}
+      status: text
+      started_at: timestamptz
+      ended_at: timestamptz
+      chief_complaint: text
+      treatment_plan: text
+
+  clinical_encounter_assignments:
+    type: linking
+    description: >
+      Clinicians involved in a clinical encounter, including the primary doctor, consulting doctors,
+      nurses, and technicians.
+    primary_key: id
+    unique: [[clinical_encounter_id, staff_id, role]]
+    fields:
+      id: uuid
+      clinical_encounter_id: {type: uuid, references: clinical_encounters.id, nullable: false}
+      staff_id: {type: uuid, references: staff_members.id, nullable: false}
+      role: text
+      notes: text
+
+  vital_signs:
+    type: data
+    description: >
+      A set of standard triage measurements captured together during a clinical encounter.
+      Multiple sets may be recorded during the same visit.
+    primary_key: id
+    fields:
+      id: uuid
+      clinical_encounter_id: {type: uuid, references: clinical_encounters.id, nullable: false}
+      measured_by_id: {type: uuid, references: staff_members.id}
+      systolic_blood_pressure: integer
+      diastolic_blood_pressure: integer
+      pulse: integer
+      respiratory_rate: integer
+      temperature: numeric
+      weight: numeric
+      height: numeric
+      oxygen_saturation: numeric
+      pain_score: integer
+      measured_at: {type: timestamptz, nullable: false}
+      notes: text
+
+  observations:
+    type: data
+    description: Structured non-vital measurements or findings such as laboratory values and examination findings.
+    primary_key: id
+    fields:
+      id: uuid
+      clinical_encounter_id: {type: uuid, references: clinical_encounters.id, nullable: false}
+      performer_id: {type: uuid, references: staff_members.id}
+      observation_code: text
+      observation_name: text
+      numeric_value: numeric
+      text_value: text
+      unit: text
+      reference_range: text
+      observed_at: timestamptz
+      notes: text
+
+  service_requests:
+    type: data
+    description: Orders for laboratory tests, imaging, endoscopy, procedures, or specialist consultations.
+    primary_key: id
+    fields:
+      id: uuid
+      clinical_encounter_id: {type: uuid, references: clinical_encounters.id, nullable: false}
+      requester_id: {type: uuid, references: doctors.id, nullable: false}
+      request_type: text
+      service_code: text
+      service_description: text
+      status: text
+      reason: text
+      requested_at: timestamptz
+      completed_at: timestamptz
+
+  procedures:
+    type: data
+    description: Services actually performed, normally in response to a service request.
+    primary_key: id
+    fields:
+      id: uuid
+      service_request_id: {type: uuid, references: service_requests.id, nullable: false}
+      performer_id: {type: uuid, references: staff_members.id}
+      procedure_code: text
+      procedure_name: text
+      status: text
+      started_at: timestamptz
+      ended_at: timestamptz
+      notes: text
+
+  diagnostic_reports:
+    type: data
+    description: Interpreted results from diagnostic services such as laboratory panels, X-rays, or endoscopies.
+    primary_key: id
+    fields:
+      id: uuid
+      service_request_id: {type: uuid, references: service_requests.id, nullable: false}
+      procedure_id: {type: uuid, references: procedures.id}
+      report_status: text
+      report_code: text
+      report_name: text
+      conclusion: text
+      issued_at: timestamptz
+
+  diagnoses:
+    type: data
+    description: Provisional, differential, or final clinical assessments recorded during a clinical encounter.
+    primary_key: id
+    fields:
+      id: uuid
+      clinical_encounter_id: {type: uuid, references: clinical_encounters.id, nullable: false}
+      doctor_id: {type: uuid, references: doctors.id, nullable: false}
+      diagnosis_type: text
+      diagnosis_code: text
+      description: text
+      recorded_at: timestamptz
+      notes: text
+
+  medications:
+    type: validation
+    description: Drugs in the clinic's formulary.
+    primary_key: id
+    fields:
+      id: uuid
+      name: {type: text, unique: true}
+      unit: text
+      dosage_form: text
+      strength: text
+      manufacturer: text
+      description: text
+
+  prescriptions:
+    type: data
+    description: Medication orders issued during a clinical encounter.
+    primary_key: id
+    fields:
+      id: uuid
+      clinical_encounter_id: {type: uuid, references: clinical_encounters.id, nullable: false}
+      prescriber_id: {type: uuid, references: doctors.id, nullable: false}
+      issue_date: date
+      notes: text
+
+  prescription_items:
+    type: linking
+    description: Individual medication lines carrying dosage, frequency, duration, and instructions.
+    primary_key: id
+    unique: [[prescription_id, medication_id]]
+    fields:
+      id: uuid
+      prescription_id: {type: uuid, references: prescriptions.id, nullable: false}
+      medication_id: {type: uuid, references: medications.id, nullable: false}
+      dosage: {type: text, nullable: false}
+      frequency: {type: text, nullable: false}
+      duration_days: integer
+      instructions: text
+
+  titles:
+    type: validation
+    description: Professional and academic titles held by doctors.
+    primary_key: id
+    fields:
+      id: uuid
+      code: {type: text, unique: true}
+      name: text
+      display_rank: {type: integer, unique: true}
+
+  departments:
+    type: validation
+    description: Clinical departments in which doctors practice.
+    primary_key: id
+    fields:
+      id: uuid
+      name: {type: text, unique: true}
+
+  allergies:
+    type: validation
+    description: The allergy or allergen catalog.
+    primary_key: id
+    fields:
+      id: uuid
+      name: {type: text, unique: true}
+      category: text
+
+  patient_allergies:
+    type: linking
+    description: Patient-specific allergy information.
+    primary_key: [patient_id, allergy_id]
+    fields:
+      patient_id: {type: uuid, references: patients.id}
+      allergy_id: {type: uuid, references: allergies.id}
+      severity: text
+      reaction: text
+      diagnosis_date: date
+
+relationships:
+  - between: [patients, patient_charts]
+    type: "1:1"
+    description: A patient has one longitudinal patient chart in this clinic, and each patient chart belongs to exactly one patient.
+  - between: [patient_charts, medical_records]
+    type: "1:N"
+    description: A patient chart contains many medical records over time, but each medical record belongs to exactly one patient chart.
+  - between: [medical_records, clinical_encounters]
+    type: "1:N"
+    description: A medical record contains one or more clinical encounters, but each clinical encounter belongs to exactly one medical record.
+  - between: [staff_members, doctors]
+    type: "1:1"
+    description: A staff member may have one doctor subtype, and every doctor is exactly one staff member.
+  - between: [clinical_encounters, staff_members]
+    type: "M:N"
+    via: clinical_encounter_assignments
+    description: A clinical encounter may involve many staff members, and a staff member may be assigned in many encounters.
+  - between: [clinical_encounters, vital_signs]
+    type: "1:N"
+    description: A clinical encounter can have many vital-sign sets because measurements may be repeated during a visit.
+  - between: [clinical_encounters, observations]
+    type: "1:N"
+    description: A clinical encounter can contain many non-vital observations.
+  - between: [clinical_encounters, service_requests]
+    type: "1:N"
+    description: A clinical encounter can create many service requests.
+  - between: [service_requests, procedures]
+    type: "1:N"
+    description: A service request may result in multiple performed procedures, and each procedure belongs to one service request.
+  - between: [service_requests, diagnostic_reports]
+    type: "1:N"
+    description: A service request may produce multiple diagnostic reports, and each report belongs to one service request.
+  - between: [procedures, diagnostic_reports]
+    type: "1:N"
+    description: A procedure may have multiple diagnostic reports, while a report may optionally reference one performed procedure.
+  - between: [clinical_encounters, diagnoses]
+    type: "1:N"
+    description: A clinical encounter can contain many diagnoses, and each diagnosis belongs to one encounter.
+  - between: [clinical_encounters, prescriptions]
+    type: "1:N"
+    description: A clinical encounter may result in many prescriptions, but each prescription belongs to exactly one clinical encounter.
+  - between: [prescriptions, medications]
+    type: "M:N"
+    via: prescription_items
+    description: A prescription can contain many medications, and a medication can appear in many prescriptions.
+  - between: [doctors, titles]
+    type: "M:N"
+    via: doctor_titles
+    description: A doctor can hold many titles, and a title can be held by many doctors.
+  - between: [doctors, departments]
+    type: "M:N"
+    via: doctor_departments
+    description: A doctor can practice in many departments, and a department can have many doctors.
+  - between: [patients, allergies]
+    type: "M:N"
+    via: patient_allergies
+    description: A patient can have many allergies, and an allergen can affect many patients.
+
+business_rules:
+  - {id: PAT-1, tables: [patients], enforcement: database, text: "A patient's date of birth cannot be in the future."}
+  - {id: PAT-2, tables: [patients], enforcement: database, text: "A national ID identifies at most one patient when provided."}
+  - {id: STF-3, tables: [staff_members, clinical_encounter_assignments], enforcement: application, text: "Only staff with employment status active may receive a new clinical-encounter assignment or perform a new clinical action."}
+  - {id: DOC-2, tables: [doctors], enforcement: database, text: "A consultation fee cannot be negative."}
+  - {id: DEP-3, tables: [doctor_departments], enforcement: database, text: "A doctor can have at most one active primary department."}
+  - {id: CHT-3, tables: [patient_charts], enforcement: database, text: "closed_at cannot be earlier than opened_at."}
+  - {id: ENC-3, tables: [clinical_encounters, medical_records], enforcement: application, text: "An encounter's time must fall within the period of its medical record."}
+  - {id: ASG-2, tables: [clinical_encounter_assignments], enforcement: database, text: "An encounter can have at most one active primary_doctor assignment."}
+  - {id: VIT-2, tables: [vital_signs], enforcement: database, text: "Oxygen saturation must be between 0 and 100, and pain score between 0 and 10."}
+  - {id: VIT-3, tables: [vital_signs], enforcement: application, text: "Systolic blood pressure should be greater than diastolic blood pressure when both are provided."}
+  - {id: OBS-2, tables: [observations], enforcement: database, text: "An observation must have at least one value: numeric or text."}
+  - {id: REQ-3, tables: [service_requests, clinical_encounter_assignments], enforcement: application, text: "The requester must be a doctor assigned to the encounter."}
+  - {id: RPT-2, tables: [diagnostic_reports, procedures], enforcement: application, text: "When a report references a procedure, that procedure must belong to the same service request as the report."}
+  - {id: RX-4, tables: [prescriptions, prescription_items], enforcement: application, text: "Every prescription must contain at least one active prescription item before it is issued."}
+  - {id: RXI-2, tables: [prescription_items], enforcement: database, text: "The same medication cannot appear more than once in the same prescription."}

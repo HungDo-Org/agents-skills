@@ -6,3 +6,12 @@ Thumbs.db
 
 # Generated packages
 *.zip
+
+# db-design-review runtime files
+.venv/
+__pycache__/
+.pytest_cache/
+.dbcheck-cache/
+*.report.md
+*.report.json
+*.jev-requests.json

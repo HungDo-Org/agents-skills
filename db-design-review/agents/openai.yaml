@@ -1,0 +1,4 @@
+interface:
+  display_name: "Database Design Review"
+  short_description: "Validate a database design against Mere Mortals and 1NF–5NF"
+  default_prompt: "Use $db-design-review to review the database design in this document."
